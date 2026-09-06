@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/umputun/revdiff/app/diff"
+	"github.com/umputun/revdiff/app/keymap"
 	"github.com/umputun/revdiff/app/ui/overlay"
 	"github.com/umputun/revdiff/app/ui/sidepane"
 	"github.com/umputun/revdiff/app/ui/style"
@@ -372,6 +373,25 @@ func (m Model) padContentBg(content string, targetWidth int, bg style.Color) str
 	return strings.Join(lines, "\n")
 }
 
+// statusIconForAction is the single source of the status-bar glyphs: statusModeIcons renders
+// them from here and the help overlay shows each beside the key that drives it. The reviewed
+// slot is one glyph position with two actions behind it: ✓ for marking, ○ for the unreviewed
+// filter.
+var statusIconForAction = map[keymap.Action]string{
+	keymap.ActionToggleCollapsed:  "▼",
+	keymap.ActionToggleCompact:    "⊂",
+	keymap.ActionFilter:           "◉",
+	keymap.ActionToggleWrap:       "↩",
+	keymap.ActionSearch:           "≋",
+	keymap.ActionToggleTree:       "⊟",
+	keymap.ActionToggleLineNums:   "#",
+	keymap.ActionToggleBlame:      "b",
+	keymap.ActionToggleWordDiff:   "±",
+	keymap.ActionMarkReviewed:     "✓",
+	keymap.ActionFilterUnreviewed: "○",
+	keymap.ActionToggleUntracked:  "∅",
+}
+
 // statusModeIcons returns combined mode indicator icons (one per view toggle).
 // all icons are always shown; active modes use status foreground, inactive use muted color.
 func (m Model) statusModeIcons() string {
@@ -379,22 +399,23 @@ func (m Model) statusModeIcons() string {
 		icon   string
 		active bool
 	}
-	reviewIcon := "✓"
+	icon := func(a keymap.Action) string { return statusIconForAction[a] }
+	reviewIcon := icon(keymap.ActionMarkReviewed)
 	if m.tree.UnreviewedFilterActive() {
-		reviewIcon = "○"
+		reviewIcon = icon(keymap.ActionFilterUnreviewed)
 	}
 	indicators := []indicator{
-		{"▼", m.modes.collapsed.enabled},
-		{"⊂", m.modes.compact},
-		{"◉", m.tree.FilterActive()},
-		{"↩", m.modes.wrap},
-		{"≋", len(m.search.matches) > 0},
-		{"⊟", m.layout.treeHidden},
-		{"#", m.modes.lineNumbers},
-		{"b", m.modes.showBlame},
-		{"±", m.modes.wordDiff},
+		{icon(keymap.ActionToggleCollapsed), m.modes.collapsed.enabled},
+		{icon(keymap.ActionToggleCompact), m.modes.compact},
+		{icon(keymap.ActionFilter), m.tree.FilterActive()},
+		{icon(keymap.ActionToggleWrap), m.modes.wrap},
+		{icon(keymap.ActionSearch), len(m.search.matches) > 0},
+		{icon(keymap.ActionToggleTree), m.layout.treeHidden},
+		{icon(keymap.ActionToggleLineNums), m.modes.lineNumbers},
+		{icon(keymap.ActionToggleBlame), m.modes.showBlame},
+		{icon(keymap.ActionToggleWordDiff), m.modes.wordDiff},
 		{reviewIcon, m.tree.ReviewedCount() > 0 || m.tree.UnreviewedFilterActive()},
-		{"∅", m.modes.showUntracked},
+		{icon(keymap.ActionToggleUntracked), m.modes.showUntracked},
 	}
 
 	mutedSeq := string(m.resolver.Color(style.ColorKeyMutedFg))
